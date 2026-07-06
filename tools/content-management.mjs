@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * Register content management tools to MCP Server
  * @param {import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} server
- * @param {{ post: Function, get: Function }} apiClient
+ * @param {{ post: Function, get: Function, put: Function, del: Function }} apiClient
  */
 export function registerContentManagementTools(server, apiClient) {
   // 55. get_prewarm_regions
@@ -12,7 +12,7 @@ export function registerContentManagementTools(server, apiClient) {
     url: z.string().describe("要查询预热区域的 URL"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/aws/prewarm/get/region', params);
+      const response = await apiClient.get('/API/aws/prewarm/get/region', { url: params.url });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -24,7 +24,7 @@ export function registerContentManagementTools(server, apiClient) {
     region: z.string().describe("区域标识"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/aws/prewarm/pop', params);
+      const response = await apiClient.get('/API/aws/prewarm/pop', { region: params.region });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -38,7 +38,7 @@ export function registerContentManagementTools(server, apiClient) {
     country: z.string().describe("目标国家"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/prewarm', params);
+      const response = await apiClient.post('/API/cdn/prefetch', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -50,7 +50,7 @@ export function registerContentManagementTools(server, apiClient) {
     id: z.string().describe("预热任务 ID"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/prewarm/status', params);
+      const response = await apiClient.get('/API/cdn/prefetch/detail', { id: params.id });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -75,7 +75,7 @@ export function registerContentManagementTools(server, apiClient) {
     id: z.string().describe("刷新任务 ID"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/purge/status', params);
+      const response = await apiClient.get('/API/cdn/purge/detail', { id: params.id });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };

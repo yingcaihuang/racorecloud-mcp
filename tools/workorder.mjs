@@ -4,13 +4,13 @@ import { z } from 'zod';
 /**
  * Register work order tools to MCP Server
  * @param {import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} server
- * @param {{ post: Function, get: Function }} apiClient
+ * @param {{ post: Function, get: Function, put: Function, del: Function }} apiClient
  */
 export function registerWorkorderTools(server, apiClient) {
   // 70. get_workorder_types
   server.tool("get_workorder_types", "获取工单类型列表", {}, async () => {
     try {
-      const response = await apiClient.get('/API/user/workorder/types', {});
+      const response = await apiClient.get('/API/user/workorder/category', {});
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -64,7 +64,7 @@ export function registerWorkorderTools(server, apiClient) {
     id: z.string().describe("工单 ID"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/user/workorder/cancel', params);
+      const response = await apiClient.put('/API/user/workorder/cancel', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -76,7 +76,7 @@ export function registerWorkorderTools(server, apiClient) {
     id: z.string().describe("工单 ID"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/user/workorder/close', params);
+      const response = await apiClient.put('/API/user/workorder/close', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -88,7 +88,7 @@ export function registerWorkorderTools(server, apiClient) {
     id: z.string().describe("工单 ID"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/user/workorder/reopen', params);
+      const response = await apiClient.put('/API/user/workorder', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -100,7 +100,7 @@ export function registerWorkorderTools(server, apiClient) {
     ids: z.string().describe("工单 ID，多个以逗号分隔"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/user/workorder/delete', params);
+      const response = await apiClient.del('/API/user/workorder', { ids: params.ids });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -112,7 +112,7 @@ export function registerWorkorderTools(server, apiClient) {
     id: z.string().describe("工单 ID"),
   }, async (params) => {
     try {
-      const response = await apiClient.get('/API/user/workorder/message', { id: params.id });
+      const response = await apiClient.get('/API/user/workorder/log', { id: params.id });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -125,7 +125,7 @@ export function registerWorkorderTools(server, apiClient) {
     content: z.string().describe("消息内容"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/user/workorder/message', params);
+      const response = await apiClient.post('/API/user/workorder/log', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };

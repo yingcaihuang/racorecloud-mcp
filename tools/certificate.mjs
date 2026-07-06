@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * Register certificate tools to MCP Server
  * @param {import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} server
- * @param {{ post: Function, get: Function }} apiClient
+ * @param {{ post: Function, get: Function, put: Function, del: Function }} apiClient
  */
 export function registerCertificateTools(server, apiClient) {
   // 50. apply_aws_certificate
@@ -12,7 +12,7 @@ export function registerCertificateTools(server, apiClient) {
     domain: z.string().describe("要申请证书的域名"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/cert/aws/apply', params);
+      const response = await apiClient.post('/API/cdn/sslcert/apply', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -24,7 +24,7 @@ export function registerCertificateTools(server, apiClient) {
     cert_id: z.string().describe("证书 ID"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/cert/aws/validation', params);
+      const response = await apiClient.get('/API/cdn/sslcert/validation/options', { cert_id: params.cert_id });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -38,7 +38,7 @@ export function registerCertificateTools(server, apiClient) {
     key: z.string().describe("私钥 PEM 内容"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/cert/upload', params);
+      const response = await apiClient.post('/API/cdn/sslcert', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -52,7 +52,7 @@ export function registerCertificateTools(server, apiClient) {
     key: z.string().describe("新私钥 PEM 内容"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/cert/update', params);
+      const response = await apiClient.put('/API/cdn/sslcert', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -68,7 +68,7 @@ export function registerCertificateTools(server, apiClient) {
       const queryParams = {};
       if (params.cert_id) queryParams.cert_id = params.cert_id;
       if (params.name) queryParams.name = params.name;
-      const response = await apiClient.get('/API/cdn/cert', queryParams);
+      const response = await apiClient.get('/API/cdn/sslcert', queryParams);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };

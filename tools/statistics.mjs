@@ -5,7 +5,7 @@ import { validateTimeParams, validateTimeRange } from '../validators.mjs';
 /**
  * Register additional statistics tools to MCP Server
  * @param {import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} server
- * @param {{ post: Function, get: Function }} apiClient
+ * @param {{ post: Function, get: Function, put: Function, del: Function }} apiClient
  */
 export function registerStatisticsTools(server, apiClient) {
   const timeSchema = {
@@ -39,7 +39,7 @@ export function registerStatisticsTools(server, apiClient) {
   }
 
   // 61. query_http_status_summary
-  registerStatTool("query_http_status_summary", "查询 HTTP 状态码汇总统计", "/API/cdn/statistics/http/code/summary");
+  registerStatTool("query_http_status_summary", "查询 HTTP 状态码汇总统计", "/API/cdn/statistics/http/code");
 
   // 62. query_top_domains
   server.tool("query_top_domains", "查询流量 Top 域名排行", {
@@ -68,13 +68,13 @@ export function registerStatisticsTools(server, apiClient) {
   });
 
   // 63. query_top_url
-  registerStatTool("query_top_url", "查询流量 Top URL 排行", "/API/cdn/statistics/top/url");
+  registerStatTool("query_top_url", "查询流量 Top URL 排行", "/API/cdn/domain/top/url");
 
   // 64. query_top_referer
-  registerStatTool("query_top_referer", "查询流量 Top Referer 排行", "/API/cdn/statistics/top/referer");
+  registerStatTool("query_top_referer", "查询流量 Top Referer 排行", "/API/cdn/domain/top/referer");
 
   // 65. query_top_ua
-  registerStatTool("query_top_ua", "查询流量 Top UA 排行", "/API/cdn/statistics/top/ua");
+  registerStatTool("query_top_ua", "查询流量 Top UA 排行", "/API/cdn/domain/top/ua");
 
   // 66. query_hit_traffic
   registerStatTool("query_hit_traffic", "查询缓存命中流量统计", "/API/cdn/statistics/hit/flow");

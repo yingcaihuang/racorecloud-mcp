@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * Register log management tools to MCP Server
  * @param {import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} server
- * @param {{ post: Function, get: Function }} apiClient
+ * @param {{ post: Function, get: Function, put: Function, del: Function }} apiClient
  */
 export function registerLogManagementTools(server, apiClient) {
   // 69. get_log_download_list
@@ -14,10 +14,10 @@ export function registerLogManagementTools(server, apiClient) {
     end_time: z.string().optional().describe("结束时间，格式 yyyy-mm-dd hh:mm"),
   }, async (params) => {
     try {
-      const body = { domain: params.domain };
-      if (params.start_time) body.start_time = params.start_time;
-      if (params.end_time) body.end_time = params.end_time;
-      const response = await apiClient.post('/API/cdn/log/download', body);
+      const queryParams = { domain: params.domain };
+      if (params.start_time) queryParams.start_time = params.start_time;
+      if (params.end_time) queryParams.end_time = params.end_time;
+      const response = await apiClient.get('/API/cdn/domain/log', queryParams);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };

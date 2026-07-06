@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * Register domain operation tools to MCP Server
  * @param {import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} server
- * @param {{ post: Function, get: Function }} apiClient
+ * @param {{ post: Function, get: Function, put: Function, del: Function }} apiClient
  */
 export function registerDomainOperationTools(server, apiClient) {
   // 1. create_domain
@@ -32,7 +32,7 @@ export function registerDomainOperationTools(server, apiClient) {
     domain: z.string().describe("要启用的域名（仅关闭状态的域名可启用）"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/enable', params);
+      const response = await apiClient.put('/API/cdn/domain/state/open', { domain: params.domain });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -44,7 +44,7 @@ export function registerDomainOperationTools(server, apiClient) {
     domain: z.string().describe("要停用的域名（仅启用状态的域名可停用）"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/disable', params);
+      const response = await apiClient.put('/API/cdn/domain/state/close', { domain: params.domain });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -56,7 +56,7 @@ export function registerDomainOperationTools(server, apiClient) {
     domain: z.string().describe("要删除的域名（仅关闭状态的域名可删除）"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/delete', params);
+      const response = await apiClient.del('/API/cdn/domain', { domain: params.domain });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };

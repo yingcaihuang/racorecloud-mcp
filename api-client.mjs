@@ -83,8 +83,20 @@ export function createApiClient(authManager) {
       throw new Error(`响应解析失败: ${endpoint} 返回非 JSON 格式 (HTTP ${response.status})`);
     }
 
-    if (data.code !== 1) {
-      throw new Error(`API 错误: ${data.message || '未知错误'}`);
+    // 处理非标准错误格式（如 {"error": "No route found..."} ）
+    if (data.error) {
+      throw new Error(`API 错误: ${data.error}`);
+    }
+
+    // 处理 HTTP 非 2xx 状态码
+    if (!response.ok && data.code === undefined) {
+      throw new Error(`HTTP 错误 (${response.status}): ${JSON.stringify(data)}`);
+    }
+
+    // 处理标准业务错误 (code !== 1)
+    if (data.code !== undefined && data.code !== 1) {
+      const msg = data.message || JSON.stringify(data);
+      throw new Error(`API 错误 (code=${data.code}): ${msg}`);
     }
 
     return data;
@@ -160,5 +172,133 @@ export function createApiClient(authManager) {
     }
   }
 
-  return { post, get };
+  /**
+   * 发送 PUT 请求到指定端点
+   * @param {string} endpoint - API 端点路径
+   * @param {object} body - 请求体
+   * @returns {Promise<any>} - 解析后的响应数据
+   */
+  async function put(endpoint, body) {
+    const token = await authManager.getValidToken();
+    const response = await sendPutRequest(endpoint, body, token);
+
+    if (response.status === 401) {
+      authManager.clearTokenCache();
+      const newToken = await authManager.getValidToken();
+      const retryResponse = await sendPutRequest(endpoint, body, newToken);
+
+      if (retryResponse.status === 401) {
+        throw new Error(`认证失败: 重试后仍返回 401，请检查 Access Key 和 Secret Key 是否正确`);
+      }
+
+      return await parseResponse(retryResponse, endpoint);
+    }
+
+    return await parseResponse(response, endpoint);
+  }
+
+  /**
+   * 发送 PUT HTTP 请求（含超时控制）
+   * @param {string} endpoint - API 端点路径
+   * @param {object} body - 请求体
+   * @param {string} token - Bearer Token
+   * @returns {Promise<Response>}
+   */
+  async function sendPutRequest(endpoint, body, token) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      return response;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`请求超时: ${endpoint} 在 30 秒内未响应`);
+      }
+      throw new Error(`网络连接失败: ${endpoint} - ${error.message}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * 发送 DELETE 请求到指定端点
+   * @param {string} endpoint - API 端点路径
+   * @param {object} [queryParams] - 查询参数对象
+   * @returns {Promise<any>} - 解析后的响应数据
+   */
+  async function del(endpoint, queryParams) {
+    const token = await authManager.getValidToken();
+    const response = await sendDeleteRequest(endpoint, queryParams, token);
+
+    if (response.status === 401) {
+      authManager.clearTokenCache();
+      const newToken = await authManager.getValidToken();
+      const retryResponse = await sendDeleteRequest(endpoint, queryParams, newToken);
+
+      if (retryResponse.status === 401) {
+        throw new Error(`认证失败: 重试后仍返回 401，请检查 Access Key 和 Secret Key 是否正确`);
+      }
+
+      return await parseResponse(retryResponse, endpoint);
+    }
+
+    return await parseResponse(response, endpoint);
+  }
+
+  /**
+   * 发送 DELETE HTTP 请求（含超时控制）
+   * @param {string} endpoint - API 端点路径
+   * @param {object} [queryParams] - 查询参数
+   * @param {string} token - Bearer Token
+   * @returns {Promise<Response>}
+   */
+  async function sendDeleteRequest(endpoint, queryParams, token) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+    try {
+      let url = `${API_BASE_URL}${endpoint}`;
+      if (queryParams) {
+        const searchParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(queryParams)) {
+          if (value !== undefined && value !== null) {
+            searchParams.append(key, String(value));
+          }
+        }
+        const qs = searchParams.toString();
+        if (qs) {
+          url += `?${qs}`;
+        }
+      }
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        signal: controller.signal,
+      });
+
+      return response;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`请求超时: ${endpoint} 在 30 秒内未响应`);
+      }
+      throw new Error(`网络连接失败: ${endpoint} - ${error.message}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return { post, get, put, del };
 }
