@@ -5,6 +5,13 @@ import { createApiClient } from './api-client.mjs';
 import { registerCdnTrafficTool } from './tools/cdn-traffic.mjs';
 import { registerRegionTrafficTool } from './tools/region-traffic.mjs';
 import { registerRequestCountTool } from './tools/request-count.mjs';
+import { registerDomainOperationTools } from './tools/domain-operations.mjs';
+import { registerDomainConfigTools } from './tools/domain-config.mjs';
+import { registerCertificateTools } from './tools/certificate.mjs';
+import { registerContentManagementTools } from './tools/content-management.mjs';
+import { registerStatisticsTools } from './tools/statistics.mjs';
+import { registerLogManagementTools } from './tools/log-management.mjs';
+import { registerWorkorderTools } from './tools/workorder.mjs';
 
 // Read environment variables
 const accessKey = process.env.RACORE_ACCESS_KEY;
@@ -34,6 +41,13 @@ const apiClient = createApiClient(authManager);
 registerCdnTrafficTool(server, apiClient);
 registerRegionTrafficTool(server, apiClient);
 registerRequestCountTool(server, apiClient);
+registerDomainOperationTools(server, apiClient);
+registerDomainConfigTools(server, apiClient);
+registerCertificateTools(server, apiClient);
+registerContentManagementTools(server, apiClient);
+registerStatisticsTools(server, apiClient);
+registerLogManagementTools(server, apiClient);
+registerWorkorderTools(server, apiClient);
 
 // Create transport and start server
 const transport = new StdioServerTransport();

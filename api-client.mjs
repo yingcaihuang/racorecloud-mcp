@@ -90,5 +90,75 @@ export function createApiClient(authManager) {
     return data;
   }
 
-  return { post };
+  /**
+   * 发送 GET 请求到指定端点
+   * @param {string} endpoint - API 端点路径
+   * @param {object} [queryParams] - 查询参数对象
+   * @returns {Promise<any>} - 解析后的响应数据
+   */
+  async function get(endpoint, queryParams) {
+    const token = await authManager.getValidToken();
+    const response = await sendGetRequest(endpoint, queryParams, token);
+
+    if (response.status === 401) {
+      authManager.clearTokenCache();
+      const newToken = await authManager.getValidToken();
+      const retryResponse = await sendGetRequest(endpoint, queryParams, newToken);
+
+      if (retryResponse.status === 401) {
+        throw new Error(`认证失败: 重试后仍返回 401，请检查 Access Key 和 Secret Key 是否正确`);
+      }
+
+      return await parseResponse(retryResponse, endpoint);
+    }
+
+    return await parseResponse(response, endpoint);
+  }
+
+  /**
+   * 发送 GET HTTP 请求（含超时控制）
+   * @param {string} endpoint - API 端点路径
+   * @param {object} [queryParams] - 查询参数
+   * @param {string} token - Bearer Token
+   * @returns {Promise<Response>}
+   */
+  async function sendGetRequest(endpoint, queryParams, token) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+    try {
+      let url = `${API_BASE_URL}${endpoint}`;
+      if (queryParams) {
+        const searchParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(queryParams)) {
+          if (value !== undefined && value !== null) {
+            searchParams.append(key, String(value));
+          }
+        }
+        const qs = searchParams.toString();
+        if (qs) {
+          url += `?${qs}`;
+        }
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        signal: controller.signal,
+      });
+
+      return response;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`请求超时: ${endpoint} 在 30 秒内未响应`);
+      }
+      throw new Error(`网络连接失败: ${endpoint} - ${error.message}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return { post, get };
 }
