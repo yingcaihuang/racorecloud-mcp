@@ -357,9 +357,12 @@ export function registerDomainConfigTools(server, apiClient) {
   });
 
   // 43. get_aws_cache_policy_list
-  server.tool("get_aws_cache_policy_list", "获取 AWS 缓存策略列表", {}, async () => {
+  server.tool("get_aws_cache_policy_list", "获取 AWS 缓存策略列表", {
+    domain: z.string().describe("域名"),
+    type: z.enum(["managed", "custom"]).describe("策略类型：managed=系统默认，custom=自定义"),
+  }, async (params) => {
     try {
-      const response = await apiClient.get('/API/cdn/list/cache/policies', {});
+      const response = await apiClient.get('/API/cdn/list/cache/policies', { domain: params.domain, type: params.type });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -367,9 +370,12 @@ export function registerDomainConfigTools(server, apiClient) {
   });
 
   // 44. get_aws_origin_request_policy_list
-  server.tool("get_aws_origin_request_policy_list", "获取 AWS 回源请求头策略列表", {}, async () => {
+  server.tool("get_aws_origin_request_policy_list", "获取 AWS 回源请求头策略列表", {
+    domain: z.string().describe("域名"),
+    type: z.enum(["managed", "custom"]).describe("策略类型：managed=系统默认，custom=自定义"),
+  }, async (params) => {
     try {
-      const response = await apiClient.get('/API/cdn/aws/origin/request/policies', {});
+      const response = await apiClient.get('/API/cdn/aws/origin/request/policies', { domain: params.domain, type: params.type });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -393,9 +399,12 @@ export function registerDomainConfigTools(server, apiClient) {
   });
 
   // 47. get_aws_response_policy_list
-  server.tool("get_aws_response_policy_list", "获取 AWS 响应头策略列表", {}, async () => {
+  server.tool("get_aws_response_policy_list", "获取 AWS 响应头策略列表", {
+    domain: z.string().describe("域名"),
+    type: z.enum(["managed", "custom"]).describe("策略类型：managed=系统默认，custom=自定义"),
+  }, async (params) => {
     try {
-      const response = await apiClient.get('/API/cdn/aws/response/headers/policies', {});
+      const response = await apiClient.get('/API/cdn/aws/response/headers/policies', { domain: params.domain, type: params.type });
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
