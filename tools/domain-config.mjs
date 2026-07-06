@@ -27,11 +27,13 @@ export function registerDomainConfigTools(server, apiClient) {
   // 7. set_domain_origin
   server.tool("set_domain_origin", "设置域名源站配置", {
     domain: z.string().describe("域名"),
-    source_type: z.string().describe("源站类型：1=IP，2=域名"),
-    source_conf: z.string().describe("源站配置 JSON 数组"),
+    source_type: z.enum(["1", "2"]).describe("源站类型：1=IP，2=域名"),
+    source_conf: z.string().describe("源站配置 JSON 数组，如 [{\"source\":\"origin.example.com\"}]"),
   }, async (params) => {
     try {
-      const response = await apiClient.put('/API/cdn/domain/source', params);
+      const body = { domain: params.domain, source_type: params.source_type };
+      body.source_conf = JSON.parse(params.source_conf);
+      const response = await apiClient.put('/API/cdn/domain/source', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -44,7 +46,8 @@ export function registerDomainConfigTools(server, apiClient) {
   // 9. set_domain_origin_host
   server.tool("set_domain_origin_host", "设置域名回源 Host", {
     domain: z.string().describe("域名"),
-    origin_host: z.string().describe("回源 Host 值"),
+    origin_host_type: z.enum(["1", "2", "3"]).describe("回源 Host 类型：1=源站域名，2=加速域名，3=自定义域名"),
+    origin_host: z.string().optional().describe("自定义回源 Host（origin_host_type=3 时必填）"),
   }, async (params) => {
     try {
       const response = await apiClient.put('/API/cdn/domain/origin/host', params);
@@ -125,10 +128,12 @@ export function registerDomainConfigTools(server, apiClient) {
   // 19. set_domain_http_response_headers
   server.tool("set_domain_http_response_headers", "设置域名 HTTP 响应头", {
     domain: z.string().describe("域名"),
-    headers: z.string().describe("响应头 JSON 数组"),
+    headers: z.string().describe("响应头配置 JSON 数组"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/http/response/headers', params);
+      const body = { domain: params.domain };
+      body.headers = JSON.parse(params.headers);
+      const response = await apiClient.post('/API/cdn/domain/http/response/headers', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -141,11 +146,13 @@ export function registerDomainConfigTools(server, apiClient) {
   // 21. set_domain_ip_blackwhitelist
   server.tool("set_domain_ip_blackwhitelist", "设置域名 IP 黑白名单", {
     domain: z.string().describe("域名"),
-    type: z.enum(["black", "white"]).describe("名单类型：black=黑名单，white=白名单"),
-    ips: z.string().describe("IP 地址，换行分隔"),
+    type: z.enum(["off", "black", "white"]).describe("名单类型：off=关闭，black=黑名单，white=白名单"),
+    value: z.string().optional().describe("IP 地址 JSON 数组，如 [\"1.1.1.1\",\"2.2.2.2\"]"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/ip/filter', params);
+      const body = { domain: params.domain, type: params.type };
+      body.value = params.value ? JSON.parse(params.value) : [];
+      const response = await apiClient.post('/API/cdn/domain/ip/filter', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -158,11 +165,15 @@ export function registerDomainConfigTools(server, apiClient) {
   // 23. set_domain_referer_blackwhitelist
   server.tool("set_domain_referer_blackwhitelist", "设置域名 Referer 黑白名单", {
     domain: z.string().describe("域名"),
-    type: z.enum(["black", "white"]).describe("名单类型：black=黑名单，white=白名单"),
-    referers: z.string().describe("Referer 列表"),
+    type: z.enum(["off", "black", "white"]).describe("名单类型：off=关闭，black=黑名单，white=白名单"),
+    value: z.string().optional().describe("Referer 列表 JSON 数组，如 [\"example.com\",\"*.test.com\"]"),
+    allow_empty: z.enum(["on", "off"]).optional().describe("允许空 Referer：on=允许，off=不允许"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/referer/filter', params);
+      const body = { domain: params.domain, type: params.type };
+      body.value = params.value ? JSON.parse(params.value) : [];
+      body.allow_empty = params.allow_empty || "on";
+      const response = await apiClient.post('/API/cdn/domain/referer/filter', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -175,11 +186,13 @@ export function registerDomainConfigTools(server, apiClient) {
   // 25. set_domain_ua_blackwhitelist
   server.tool("set_domain_ua_blackwhitelist", "设置域名 UA 黑白名单", {
     domain: z.string().describe("域名"),
-    type: z.enum(["black", "white"]).describe("名单类型：black=黑名单，white=白名单"),
-    ua_list: z.string().describe("UA 列表"),
+    type: z.enum(["off", "black", "white"]).describe("名单类型：off=关闭，black=黑名单，white=白名单"),
+    value: z.string().optional().describe("UA 列表 JSON 数组，如 [\"curl/*\",\"Python-urllib/*\"]"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/user/agent/filter', params);
+      const body = { domain: params.domain, type: params.type };
+      body.value = params.value ? JSON.parse(params.value) : [];
+      const response = await apiClient.post('/API/cdn/domain/user/agent/filter', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -192,10 +205,15 @@ export function registerDomainConfigTools(server, apiClient) {
   // 27. set_domain_origin_protocol
   server.tool("set_domain_origin_protocol", "设置域名回源协议", {
     domain: z.string().describe("域名"),
-    protocol: z.enum(["http", "https", "follow"]).describe("回源协议：http、https 或 follow"),
+    origin_protocol_policy: z.enum(["match-viewer", "http-only", "https-only"]).describe("回源协议：match-viewer=跟随，http-only=仅HTTP，https-only=仅HTTPS"),
+    origin_protocol_http_port: z.string().optional().describe("HTTP 回源端口，默认 80"),
+    origin_protocol_https_port: z.string().optional().describe("HTTPS 回源端口，默认 443"),
   }, async (params) => {
     try {
-      const response = await apiClient.put('/API/cdn/domain/origin/protocol/policy', params);
+      const body = { domain: params.domain, origin_protocol_policy: params.origin_protocol_policy };
+      body.origin_protocol_http_port = params.origin_protocol_http_port || "80";
+      body.origin_protocol_https_port = params.origin_protocol_https_port || "443";
+      const response = await apiClient.put('/API/cdn/domain/origin/protocol/policy', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -208,10 +226,12 @@ export function registerDomainConfigTools(server, apiClient) {
   // 29. set_domain_origin_headers
   server.tool("set_domain_origin_headers", "设置域名回源请求头", {
     domain: z.string().describe("域名"),
-    headers: z.string().describe("回源请求头 JSON 数组"),
+    headers: z.string().describe("回源请求头配置 JSON 数组"),
   }, async (params) => {
     try {
-      const response = await apiClient.post('/API/cdn/domain/http/request/headers', params);
+      const body = { domain: params.domain };
+      body.headers = JSON.parse(params.headers);
+      const response = await apiClient.post('/API/cdn/domain/http/request/headers', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -256,7 +276,7 @@ export function registerDomainConfigTools(server, apiClient) {
   // 35. set_domain_min_tls
   server.tool("set_domain_min_tls", "设置域名最低 TLS 版本", {
     domain: z.string().describe("域名"),
-    tls_version: z.enum(["TLSv1.0", "TLSv1.1", "TLSv1.2"]).describe("最低 TLS 版本"),
+    min_tls_version: z.enum(["SSLv3", "TLSv1", "TLSv1_2016", "TLSv1.1_2016", "TLSv1.2_2018", "TLSv1.2_2019", "TLSv1.2_2021"]).describe("最低 TLS 版本"),
   }, async (params) => {
     try {
       const response = await apiClient.put('/API/cdn/domain/min/tls/version', params);
@@ -272,7 +292,10 @@ export function registerDomainConfigTools(server, apiClient) {
   // 37. set_domain_origin_timeout (AWS Only)
   server.tool("set_domain_origin_timeout", "设置域名回源超时时间（仅 AWS）", {
     domain: z.string().describe("域名"),
-    timeout: z.number().describe("超时时间（秒）"),
+    connection_attempts: z.number().optional().describe("连接尝试次数，1-3，默认 3"),
+    connection_timeout: z.number().optional().describe("连接超时秒数，1-10，默认 10"),
+    response_timeout: z.number().optional().describe("响应超时秒数，1-60，默认 30"),
+    keepalive_timeout: z.number().optional().describe("保活超时秒数，1-60，默认 5"),
   }, async (params) => {
     try {
       const response = await apiClient.put('/API/cdn/domain/origin/connection/policy', params);
@@ -288,11 +311,17 @@ export function registerDomainConfigTools(server, apiClient) {
   // 39. set_domain_geo_restriction (AWS Only)
   server.tool("set_domain_geo_restriction", "设置域名地理访问控制（仅 AWS）", {
     domain: z.string().describe("域名"),
-    type: z.enum(["none", "whitelist", "blacklist"]).describe("限制类型"),
-    countries: z.string().optional().describe("国家代码"),
+    restriction_type: z.enum(["none", "whitelist", "blacklist"]).describe("限制类型：none=无限制，whitelist=白名单，blacklist=黑名单"),
+    restriction_item: z.string().optional().describe("国家代码 JSON 数组，如 [\"CN\",\"US\"]"),
   }, async (params) => {
     try {
-      const response = await apiClient.put('/API/cdn/domain/geo/restriction', params);
+      const body = { domain: params.domain, restriction_type: params.restriction_type };
+      if (params.restriction_item) {
+        body.restriction_item = JSON.parse(params.restriction_item);
+      } else {
+        body.restriction_item = [];
+      }
+      const response = await apiClient.put('/API/cdn/domain/geo/restriction', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -315,10 +344,12 @@ export function registerDomainConfigTools(server, apiClient) {
   // 42. set_domain_cache_policy
   server.tool("set_domain_cache_policy", "设置域名缓存策略", {
     domain: z.string().describe("域名"),
-    cache_type: z.string().describe("缓存策略类型"),
+    cache_conf: z.string().describe("缓存配置 JSON 数组，如 [{\"path\":\"/img/*\",\"type\":1,\"policy_id\":\"xxx\"}]，设为 [] 表示删除自定义策略"),
   }, async (params) => {
     try {
-      const response = await apiClient.put('/API/cdn/domain/cache/conf', params);
+      const body = { domain: params.domain };
+      body.cache_conf = JSON.parse(params.cache_conf);
+      const response = await apiClient.put('/API/cdn/domain/cache/conf', body);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
     } catch (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
