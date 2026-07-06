@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "racore-cdn": {
+      "command": "node",
+      "args": ["/Users/betty/Downloads/racorecloud-mcp/index.mjs"],
+      "env": {
+        "RACORE_ACCESS_KEY": "xxxxx",
+        "RACORE_SECRET_KEY": "xxxx"
+      },
+      "disabled": false
+    }
+  }
+}
