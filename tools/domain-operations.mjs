@@ -76,4 +76,90 @@ export function registerDomainOperationTools(server, apiClient) {
       return { content: [{ type: "text", text: error.message }], isError: true };
     }
   });
+
+  // 6. quick_create_domain - 一键快速创建加速域名
+  server.tool("quick_create_domain", "一键快速创建 CDN 加速域名（只需域名和源站，自动匹配证书并开启 SSL）", {
+    domain: z.string().describe("加速域名，如 v2.bbv.cfai.work"),
+    origin: z.string().describe("源站地址（域名或 IP），如 www2.myccdn.info 或 1.2.3.4"),
+    type: z.enum(["oversea", "live", "video", "dynamic", "static", "download"]).optional().describe("加速类型，默认 oversea（海外加速）"),
+    note: z.string().optional().describe("备注"),
+  }, async (params) => {
+    try {
+      // 1. 判断源站类型
+      const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(params.origin);
+      const source_type = isIp ? "1" : "2";
+
+      // 2. 自动查找匹配的证书（通配符或精确匹配）
+      let cert_id = null;
+      let cert_name = null;
+      try {
+        const certResponse = await apiClient.get('/API/cdn/sslcert', {});
+        if (certResponse.data && Array.isArray(certResponse.data)) {
+          const domain = params.domain;
+          // 提取域名层级用于通配符匹配
+          // 如 v2.bbv.cfai.work → 尝试匹配 *.bbv.cfai.work, *.cfai.work, v2.bbv.cfai.work
+          const parts = domain.split('.');
+          const wildcardPatterns = [];
+          for (let i = 1; i < parts.length; i++) {
+            wildcardPatterns.push('*.' + parts.slice(i).join('.'));
+          }
+          // 优先精确匹配，其次通配符（从最具体到最宽泛）
+          const matchPatterns = [domain, ...wildcardPatterns];
+
+          for (const pattern of matchPatterns) {
+            const cert = certResponse.data.find(c =>
+              c.state === 'ISSUED' && (
+                c.common_name === pattern ||
+                (c.subject_altname && c.subject_altname.includes(pattern))
+              )
+            );
+            if (cert) {
+              cert_id = cert.id;
+              cert_name = cert.name || cert.common_name;
+              break;
+            }
+          }
+        }
+      } catch {
+        // 证书查询失败，继续尝试不带证书创建
+      }
+
+      // 3. 构建请求体
+      const body = {
+        domain: params.domain,
+        type: params.type || "oversea",
+        source_type,
+        source_conf: [{ source: params.origin, type: "1" }],
+        is_ssl: cert_id ? "1" : "0",
+        cache_type: "1",
+      };
+
+      if (cert_id) body.cert_id = cert_id;
+      if (params.note) body.note = params.note;
+
+      // 4. 创建域名
+      const response = await apiClient.post('/API/cdn/domain', body);
+
+      // 5. 格式化返回信息
+      const data = response.data;
+      const lines = [
+        `✅ 域名创建成功`,
+        ``,
+        `域名: ${data.name}`,
+        `CNAME: ${data.cname}`,
+        `域名 ID: ${data.id}`,
+        `加速类型: ${data.type}`,
+        `源站: ${params.origin} (${isIp ? 'IP' : '域名'})`,
+        `SSL: ${cert_id ? '已开启' : '未开启'}`,
+      ];
+      if (cert_id) {
+        lines.push(`证书: ${cert_name} (ID: ${cert_id})`);
+      }
+      lines.push('', `⚠️ 请将域名 CNAME 解析到: ${data.cname}`);
+
+      return { content: [{ type: "text", text: lines.join('\n') }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: error.message }], isError: true };
+    }
+  });
 }
