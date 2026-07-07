@@ -129,6 +129,34 @@ node --check index.mjs && echo "✅ 安装成功"
 }
 ```
 
+### 方式四：Amazon Q Developer (Quick Desktop)
+
+1. 复制项目中的 `mcp.json` 文件内容（修改路径和密钥后）：
+
+```json
+{
+  "mcpServers": {
+    "racore-cdn": {
+      "command": "node",
+      "args": ["/你的路径/racorecloud-mcp/index.mjs"],
+      "env": {
+        "RACORE_ACCESS_KEY": "你的 Access Key",
+        "RACORE_SECRET_KEY": "你的 Secret Key"
+      }
+    }
+  }
+}
+```
+
+2. 打开 Amazon Q Developer Desktop 的 **Settings**
+3. 进入 **Capabilities** 选项卡
+4. 找到 **MCP Server** 区域，点击 **Add MCP Server**
+5. 类型选择 **Local**
+6. 点击 **Paste JSON**，粘贴上面的 JSON 内容
+7. 保存后 MCP Server 会自动连接
+
+> 💡 **提示**：也可以直接将 `mcp.json` 文件放在项目根目录，Amazon Q 会自动识别。
+
 ### 验证配置
 
 配置完成后，在 AI 助手中尝试：
