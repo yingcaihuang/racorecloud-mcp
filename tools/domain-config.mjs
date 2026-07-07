@@ -21,6 +21,33 @@ export function registerDomainConfigTools(server, apiClient) {
     });
   }
 
+  /**
+   * 检查域名状态是否允许修改（只有 state=1 启用状态才能提交变更）
+   * @param {string} domain - 域名
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   */
+  async function checkDomainState(domain) {
+    try {
+      const response = await apiClient.get('/API/cdn/domain', { domain });
+      if (response.data && response.data.length > 0) {
+        const state = response.data[0].state;
+        if (state !== '1') {
+          const stateMap = {
+            '2': '部署失败', '4': '已停用', '5': '欠费',
+            '6': '配置中（部署变更中）', '8': '已封禁',
+            '14': '已锁定', '15': '待激活', '16': '已删除'
+          };
+          const stateDesc = stateMap[state] || `未知状态(${state})`;
+          return { ok: false, error: `域名 ${domain} 当前状态为「${stateDesc}」(state=${state})，只有启用状态(state=1)才能提交配置变更，请稍后再试` };
+        }
+      }
+      return { ok: true };
+    } catch {
+      // 如果查询失败，不阻塞操作，让后续 API 自己报错
+      return { ok: true };
+    }
+  }
+
   // 6. query_domain_origin
   registerDomainGetQuery("query_domain_origin", "查询域名源站配置", "/API/cdn/domain/source");
 
@@ -30,6 +57,11 @@ export function registerDomainConfigTools(server, apiClient) {
     source_type: z.enum(["1", "2"]).describe("源站类型：1=IP，2=域名"),
     source_conf: z.string().describe("源站配置 JSON 数组，如 [{\"source\":\"origin.example.com\"}]"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain, source_type: params.source_type };
       body.source_conf = JSON.parse(params.source_conf);
@@ -49,6 +81,11 @@ export function registerDomainConfigTools(server, apiClient) {
     origin_host_type: z.enum(["1", "2", "3"]).describe("回源 Host 类型：1=源站域名，2=加速域名，3=自定义域名"),
     origin_host: z.string().optional().describe("自定义回源 Host（origin_host_type=3 时必填）"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/origin/host', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -66,6 +103,11 @@ export function registerDomainConfigTools(server, apiClient) {
     is_ssl: z.string().describe("启用 SSL：0=否，1=是"),
     cert_id: z.string().optional().describe("证书 ID"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/ssl', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -82,6 +124,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     https_redirect: z.enum(["on", "off"]).describe("强制 HTTPS 跳转：on=开启，off=关闭"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/enforce/https', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -98,6 +145,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     enable: z.enum(["on", "off"]).describe("智能压缩：on=开启，off=关闭"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/page/compress', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -114,6 +166,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     enable: z.enum(["0", "1"]).describe("IPv6：0=关闭，1=开启"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/ipv6', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -130,6 +187,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     headers: z.string().describe("响应头配置 JSON 数组"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain };
       body.headers = JSON.parse(params.headers);
@@ -149,6 +211,11 @@ export function registerDomainConfigTools(server, apiClient) {
     type: z.enum(["off", "black", "white"]).describe("名单类型：off=关闭，black=黑名单，white=白名单"),
     value: z.string().optional().describe("IP 地址 JSON 数组，如 [\"1.1.1.1\",\"2.2.2.2\"]"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain, type: params.type };
       body.value = params.value ? JSON.parse(params.value) : [];
@@ -169,6 +236,11 @@ export function registerDomainConfigTools(server, apiClient) {
     value: z.string().optional().describe("Referer 列表 JSON 数组，如 [\"example.com\",\"*.test.com\"]"),
     allow_empty: z.enum(["on", "off"]).optional().describe("允许空 Referer：on=允许，off=不允许"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain, type: params.type };
       body.value = params.value ? JSON.parse(params.value) : [];
@@ -189,6 +261,11 @@ export function registerDomainConfigTools(server, apiClient) {
     type: z.enum(["off", "black", "white"]).describe("名单类型：off=关闭，black=黑名单，white=白名单"),
     value: z.string().optional().describe("UA 列表 JSON 数组，如 [\"curl/*\",\"Python-urllib/*\"]"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain, type: params.type };
       body.value = params.value ? JSON.parse(params.value) : [];
@@ -209,6 +286,11 @@ export function registerDomainConfigTools(server, apiClient) {
     origin_protocol_http_port: z.string().optional().describe("HTTP 回源端口，默认 80"),
     origin_protocol_https_port: z.string().optional().describe("HTTPS 回源端口，默认 443"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain, origin_protocol_policy: params.origin_protocol_policy };
       body.origin_protocol_http_port = params.origin_protocol_http_port || "80";
@@ -228,6 +310,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     headers: z.string().describe("回源请求头配置 JSON 数组"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain };
       body.headers = JSON.parse(params.headers);
@@ -246,6 +333,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     enable: z.enum(["on", "off"]).describe("HTTP/2：on=开启，off=关闭"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/http2', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -262,6 +354,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     enable: z.enum(["on", "off"]).describe("HTTP/3：on=开启，off=关闭"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/http3', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -278,6 +375,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     min_tls_version: z.enum(["SSLv3", "TLSv1", "TLSv1_2016", "TLSv1.1_2016", "TLSv1.2_2018", "TLSv1.2_2019", "TLSv1.2_2021"]).describe("最低 TLS 版本"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/min/tls/version', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -297,6 +399,11 @@ export function registerDomainConfigTools(server, apiClient) {
     response_timeout: z.number().optional().describe("响应超时秒数，1-60，默认 30"),
     keepalive_timeout: z.number().optional().describe("保活超时秒数，1-60，默认 5"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/origin/connection/policy', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -314,6 +421,11 @@ export function registerDomainConfigTools(server, apiClient) {
     restriction_type: z.enum(["none", "whitelist", "blacklist"]).describe("限制类型：none=无限制，whitelist=白名单，blacklist=黑名单"),
     restriction_item: z.string().optional().describe("国家代码 JSON 数组，如 [\"CN\",\"US\"]"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain, restriction_type: params.restriction_type };
       if (params.restriction_item) {
@@ -346,6 +458,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     cache_conf: z.string().describe("缓存配置 JSON 数组，如 [{\"path\":\"/img/*\",\"type\":1,\"policy_id\":\"xxx\"}]，设为 [] 表示删除自定义策略"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const body = { domain: params.domain };
       body.cache_conf = JSON.parse(params.cache_conf);
@@ -390,6 +507,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     policy_id: z.string().optional().describe("策略 ID"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/request/header/policy', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
@@ -419,6 +541,11 @@ export function registerDomainConfigTools(server, apiClient) {
     domain: z.string().describe("域名"),
     policy_id: z.string().optional().describe("策略 ID"),
   }, async (params) => {
+    // 检查域名状态
+    const stateCheck = await checkDomainState(params.domain);
+    if (!stateCheck.ok) {
+      return { content: [{ type: "text", text: stateCheck.error }], isError: true };
+    }
     try {
       const response = await apiClient.put('/API/cdn/domain/response/header/policy', params);
       return { content: [{ type: "text", text: JSON.stringify(response.data) }] };
