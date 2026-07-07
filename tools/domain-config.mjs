@@ -48,6 +48,68 @@ export function registerDomainConfigTools(server, apiClient) {
     }
   }
 
+  // 一键查询域名全部配置
+  server.tool("query_all_domain_config", "一键查询域名的全部配置信息（源站、HTTPS、压缩、缓存、协议、访问控制等）", {
+    domain: z.string().describe("要查询的域名"),
+  }, async (params) => {
+    const domain = params.domain;
+    const configs = {};
+
+    // 并发查询所有配置
+    const queries = [
+      { key: '基本信息', endpoint: '/API/cdn/domain', isList: true },
+      { key: '源站配置', endpoint: '/API/cdn/domain/source' },
+      { key: '回源Host', endpoint: '/API/cdn/domain/origin/host' },
+      { key: '回源协议', endpoint: '/API/cdn/domain/origin/protocol/policy' },
+      { key: 'HTTPS配置', endpoint: '/API/cdn/domain/ssl' },
+      { key: '强制HTTPS', endpoint: '/API/cdn/domain/enforce/https' },
+      { key: 'HTTP/2', endpoint: '/API/cdn/domain/http2' },
+      { key: 'HTTP/3', endpoint: '/API/cdn/domain/http3' },
+      { key: '最低TLS版本', endpoint: '/API/cdn/domain/min/tls/version' },
+      { key: '智能压缩', endpoint: '/API/cdn/domain/page/compress' },
+      { key: 'IPv6', endpoint: '/API/cdn/domain/ipv6' },
+      { key: '缓存策略', endpoint: '/API/cdn/domain/cache/conf' },
+      { key: 'IP黑白名单', endpoint: '/API/cdn/domain/ip/filter' },
+      { key: 'Referer黑白名单', endpoint: '/API/cdn/domain/referer/filter' },
+      { key: 'UA黑白名单', endpoint: '/API/cdn/domain/user/agent/filter' },
+      { key: 'HTTP响应头', endpoint: '/API/cdn/domain/http/response/headers' },
+      { key: '回源请求头', endpoint: '/API/cdn/domain/http/request/headers' },
+      { key: '回源超时(AWS)', endpoint: '/API/cdn/domain/origin/connection/policy' },
+      { key: '地理访问控制(AWS)', endpoint: '/API/cdn/domain/geo/restriction' },
+    ];
+
+    const results = await Promise.allSettled(
+      queries.map(async (q) => {
+        try {
+          const response = await apiClient.get(q.endpoint, { domain });
+          return { key: q.key, data: q.isList ? response.data?.[0] : response.data };
+        } catch (error) {
+          return { key: q.key, error: error.message };
+        }
+      })
+    );
+
+    // 构建输出
+    const lines = [`📋 域名 ${domain} 全部配置：`, ''];
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { key, data, error } = result.value;
+        if (error) {
+          lines.push(`【${key}】查询失败: ${error}`);
+        } else if (data) {
+          lines.push(`【${key}】`);
+          lines.push(JSON.stringify(data, null, 2));
+        } else {
+          lines.push(`【${key}】无数据`);
+        }
+        lines.push('');
+      }
+    }
+
+    return { content: [{ type: "text", text: lines.join('\n') }] };
+  });
+
   // 6. query_domain_origin
   registerDomainGetQuery("query_domain_origin", "查询域名源站配置", "/API/cdn/domain/source");
 
