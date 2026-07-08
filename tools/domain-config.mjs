@@ -23,29 +23,64 @@ export function registerDomainConfigTools(server, apiClient) {
 
   /**
    * 检查域名状态是否允许修改（只有 state=1 启用状态才能提交变更）
+   * 如果域名处于 state=6（配置中），会每隔 30 秒重试，最多 3 次，并输出等待日志
    * @param {string} domain - 域名
-   * @returns {Promise<{ok: boolean, error?: string}>}
+   * @returns {Promise<{ok: boolean, error?: string, waitInfo?: string}>}
    */
   async function checkDomainState(domain) {
-    try {
-      const response = await apiClient.get('/API/cdn/domain', { domain });
-      if (response.data && response.data.length > 0) {
-        const state = response.data[0].state;
-        if (state !== '1') {
+    const maxRetries = 3;
+    const retryInterval = 30000; // 30 秒
+    const waitLogs = [];
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await apiClient.get('/API/cdn/domain', { domain });
+        if (response.data && response.data.length > 0) {
+          const state = response.data[0].state;
+
+          // 启用状态，可以操作
+          if (state === '1') {
+            if (waitLogs.length > 0) {
+              waitLogs.push(`✅ 域名 ${domain} 已就绪 (state=1)，继续执行配置变更`);
+              process.stderr.write(`[racore-cdn] ✅ 域名 ${domain} 已就绪，继续执行\n`);
+            }
+            return { ok: true, waitInfo: waitLogs.length > 0 ? waitLogs.join('\n') : undefined };
+          }
+
+          // 配置中状态（state=6），等待并重试
+          if (state === '6') {
+            if (attempt < maxRetries) {
+              const msg = `⏳ 域名 ${domain} 正在配置发布中 (state=6)，等待 30 秒后重试 (${attempt + 1}/${maxRetries})...`;
+              waitLogs.push(msg);
+              process.stderr.write(`[racore-cdn] ${msg}\n`);
+              await new Promise(resolve => setTimeout(resolve, retryInterval));
+              continue;
+            }
+            // 重试次数用完
+            const finalMsg = `❌ 域名 ${domain} 配置发布中 (state=6)，已等待 ${maxRetries * 30} 秒仍未就绪`;
+            waitLogs.push(finalMsg);
+            process.stderr.write(`[racore-cdn] ${finalMsg}\n`);
+            return {
+              ok: false,
+              error: waitLogs.join('\n') + '\n\n请稍后再试，或通过 get_domain_list 查看域名状态。',
+            };
+          }
+
+          // 其他不可操作状态，直接返回错误
           const stateMap = {
             '2': '部署失败', '4': '已停用', '5': '欠费',
-            '6': '配置中（部署变更中）', '8': '已封禁',
-            '14': '已锁定', '15': '待激活', '16': '已删除'
+            '8': '已封禁', '14': '已锁定', '15': '待激活', '16': '已删除'
           };
           const stateDesc = stateMap[state] || `未知状态(${state})`;
-          return { ok: false, error: `域名 ${domain} 当前状态为「${stateDesc}」(state=${state})，只有启用状态(state=1)才能提交配置变更，请稍后再试` };
+          return { ok: false, error: `域名 ${domain} 当前状态为「${stateDesc}」(state=${state})，只有启用状态(state=1)才能提交配置变更` };
         }
+        return { ok: true };
+      } catch {
+        // 如果查询失败，不阻塞操作，让后续 API 自己报错
+        return { ok: true };
       }
-      return { ok: true };
-    } catch {
-      // 如果查询失败，不阻塞操作，让后续 API 自己报错
-      return { ok: true };
     }
+    return { ok: true };
   }
 
   // 一键查询域名全部配置
