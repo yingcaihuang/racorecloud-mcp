@@ -138,33 +138,62 @@ export function registerDomainOperationTools(server, apiClient) {
 
           const newCertId = applyResponse.data.id;
 
-          // 获取验证信息
-          const validationResponse = await apiClient.get('/API/cdn/sslcert/validation/options', { id: newCertId });
-          const validations = validationResponse.data.validations || [];
+          // 等待 3 秒让 AWS 生成验证信息
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          // 获取验证信息（最多重试 3 次，每次间隔 2 秒）
+          let validations = [];
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              const validationResponse = await apiClient.get('/API/cdn/sslcert/validation/options', { id: newCertId });
+              validations = validationResponse.data.validations || [];
+              // 检查是否有有效的 CNAME 信息
+              if (validations.length > 0 && validations[0].cname_name && validations[0].cname_name !== 'null') {
+                break;
+              }
+            } catch { /* ignore */ }
+            if (attempt < 2) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
 
           // 构建返回信息
           const lines = [
             `⚠️ 未找到匹配的 SSL 证书，已自动申请泛域名证书`,
             ``,
-            `证书 ID: ${newCertId}`,
-            `申请域名: ${wildcardDomain}`,
-            `验证方式: DNS (CNAME)`,
-            ``,
-            `📋 请添加以下 DNS CNAME 记录完成验证：`,
+            `📌 证书信息`,
+            `  证书 ID: ${newCertId}`,
+            `  申请域名: ${wildcardDomain}`,
+            `  验证方式: DNS (CNAME 验证)`,
+            `  密钥算法: ECDSA P 384`,
             ``,
           ];
 
-          for (const v of validations) {
-            lines.push(`域名: ${v.domain}`);
-            lines.push(`  记录类型: CNAME`);
-            lines.push(`  主机记录: ${v.cname_name}`);
-            lines.push(`  记录值: ${v.cname_value}`);
-            lines.push(`  状态: ${v.status}`);
+          if (validations.length > 0 && validations[0].cname_name && validations[0].cname_name !== 'null') {
+            lines.push(`📋 请在 DNS 中添加以下 CNAME 记录完成验证：`);
+            lines.push(``);
+            lines.push(`┌──────────────────────────────────────────────`);
+            for (const v of validations) {
+              lines.push(`│ 域名: ${v.domain}`);
+              lines.push(`│ 记录类型: CNAME`);
+              lines.push(`│ 主机记录 (Name): ${v.cname_name}`);
+              lines.push(`│ 记录值 (Value): ${v.cname_value}`);
+              lines.push(`│ 验证状态: ${v.status === 'PENDING_VALIDATION' ? '⏳ 等待验证' : v.status}`);
+              lines.push(`└──────────────────────────────────────────────`);
+              lines.push(``);
+            }
+          } else {
+            lines.push(`⏳ DNS 验证信息正在生成中，请稍后使用以下命令查询：`);
+            lines.push(`  → 调用 get_aws_cert_validation，参数 cert_id = "${newCertId}"`);
             lines.push(``);
           }
 
-          lines.push(`⏳ 完成 DNS 验证后证书将自动签发（通常需要几分钟到几小时）`);
-          lines.push(`✅ 证书签发后，请再次调用 quick_create_domain 即可自动完成域名创建`);
+          lines.push(`📝 操作步骤：`);
+          lines.push(`  1. 在 DNS 服务商添加上述 CNAME 记录`);
+          lines.push(`  2. 等待证书签发（通常 5-30 分钟，最长数小时）`);
+          lines.push(`  3. 再次调用 quick_create_domain 相同参数即可自动完成域名创建`);
+          lines.push(``);
+          lines.push(`💡 可通过 get_aws_cert_validation (cert_id: "${newCertId}") 随时查看验证进度`);
 
           return { content: [{ type: "text", text: lines.join('\n') }] };
         } catch (certError) {
