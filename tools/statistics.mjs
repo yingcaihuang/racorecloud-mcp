@@ -38,6 +38,59 @@ export function registerStatisticsTools(server, apiClient) {
     });
   }
 
+  // 一键查询域名全部统计数据
+  server.tool("query_all_statistics", "一键查询域名的全部统计数据（流量、请求数、命中率、状态码、Top URL/Referer/UA）", {
+    domain: z.string().optional().describe("域名，不提供则查询全部域名"),
+    scope: z.enum(["today", "yesterday", "week", "month", "last_month"]).optional().describe("时间范围，默认 today"),
+  }, async (params) => {
+    const query = { scope: params.scope || 'today' };
+    if (params.domain) query.domain = params.domain;
+
+    const endpoints = [
+      { key: 'CDN流量', endpoint: '/API/cdn/statistics/flow' },
+      { key: '请求数', endpoint: '/API/cdn/statistics/request' },
+      { key: '地区流量分布', endpoint: '/API/cdn/statistics/district' },
+      { key: '缓存命中流量', endpoint: '/API/cdn/statistics/hit/flow' },
+      { key: '缓存命中请求数', endpoint: '/API/cdn/statistics/hit/request' },
+      { key: 'HTTP状态码汇总', endpoint: '/API/cdn/statistics/http/code' },
+      { key: 'HTTP状态码详情', endpoint: '/API/cdn/statistics/http/code/detail' },
+      { key: 'Top域名', endpoint: '/API/cdn/statistics/top/domain' },
+      { key: 'Top URL', endpoint: '/API/cdn/domain/top/url' },
+      { key: 'Top Referer', endpoint: '/API/cdn/domain/top/referer' },
+      { key: 'Top UA', endpoint: '/API/cdn/domain/top/ua' },
+    ];
+
+    const results = await Promise.allSettled(
+      endpoints.map(async (ep) => {
+        try {
+          const response = await apiClient.post(ep.endpoint, query);
+          return { key: ep.key, data: response.data };
+        } catch (error) {
+          return { key: ep.key, error: error.message };
+        }
+      })
+    );
+
+    const lines = [`📊 统计数据概览 (${params.domain || '全部域名'}, ${query.scope})`, ''];
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { key, data, error } = result.value;
+        if (error) {
+          lines.push(`【${key}】查询失败: ${error}`);
+        } else if (data && ((Array.isArray(data) && data.length > 0) || (!Array.isArray(data) && data))) {
+          lines.push(`【${key}】`);
+          lines.push(JSON.stringify(data, null, 2));
+        } else {
+          lines.push(`【${key}】无数据`);
+        }
+        lines.push('');
+      }
+    }
+
+    return { content: [{ type: "text", text: lines.join('\n') }] };
+  });
+
   // 61. query_http_status_summary
   registerStatTool("query_http_status_summary", "查询 HTTP 状态码汇总统计", "/API/cdn/statistics/http/code");
 
