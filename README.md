@@ -193,10 +193,14 @@ GET   http(s)://<主机>/racorecdn/health  # 健康检查
 
 ```json
 {
-  "url": "https://你的域名/racorecdn/mcp",
-  "headers": {
-    "X-Racore-Access-Key": "你的 Access Key",
-    "X-Racore-Secret-Key": "你的 Secret Key"
+  "mcpServers": {
+    "racore-remote-mcp": {
+      "url": "https://racore-mcp.verycloud.cn/racorecdn/mcp",
+      "headers": {
+        "X-Racore-Access-Key": "你的 Access Key",
+        "X-Racore-Secret-Key": "你的 Secret Key"
+      }
+    }
   }
 }
 ```
