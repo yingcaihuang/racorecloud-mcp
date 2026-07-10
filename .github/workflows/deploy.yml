@@ -39,5 +39,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /opt/racorecloud-mcp
-            docker compose pull mcp
-            docker compose up -d mcp
+            git pull
+            docker compose pull
+            docker compose up -d
