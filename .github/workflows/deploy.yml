@@ -46,5 +46,4 @@ jobs:
             export GIT_TERMINAL_PROMPT=0
             cd /opt/racorecloud-mcp
             git pull --ff-only
-            docker compose pull
-            docker compose up -d
+            docker compose pull && docker compose up -d
