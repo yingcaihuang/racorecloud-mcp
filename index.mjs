@@ -1,17 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createAuthManager } from './auth.mjs';
-import { createApiClient } from './api-client.mjs';
-import { registerCdnTrafficTool } from './tools/cdn-traffic.mjs';
-import { registerRegionTrafficTool } from './tools/region-traffic.mjs';
-import { registerRequestCountTool } from './tools/request-count.mjs';
-import { registerDomainOperationTools } from './tools/domain-operations.mjs';
-import { registerDomainConfigTools } from './tools/domain-config.mjs';
-import { registerCertificateTools } from './tools/certificate.mjs';
-import { registerContentManagementTools } from './tools/content-management.mjs';
-import { registerStatisticsTools } from './tools/statistics.mjs';
-import { registerLogManagementTools } from './tools/log-management.mjs';
-import { registerWorkorderTools } from './tools/workorder.mjs';
+import { buildServer } from './server-factory.mjs';
 
 // Read environment variables
 const accessKey = process.env.RACORE_ACCESS_KEY;
@@ -27,27 +15,8 @@ if (!secretKey) {
   process.exit(1);
 }
 
-// Create MCP Server instance
-const server = new McpServer({
-  name: 'racore-cdn-mcp-server',
-  version: '1.0.0',
-});
-
-// Create infrastructure instances
-const authManager = createAuthManager(accessKey, secretKey);
-const apiClient = createApiClient(authManager);
-
-// Register tools
-registerCdnTrafficTool(server, apiClient);
-registerRegionTrafficTool(server, apiClient);
-registerRequestCountTool(server, apiClient);
-registerDomainOperationTools(server, apiClient);
-registerDomainConfigTools(server, apiClient);
-registerCertificateTools(server, apiClient);
-registerContentManagementTools(server, apiClient);
-registerStatisticsTools(server, apiClient);
-registerLogManagementTools(server, apiClient);
-registerWorkorderTools(server, apiClient);
+// Build server with credentials (stdio 单例模式，行为与原来一致)
+const server = buildServer({ accessKey, secretKey });
 
 // Create transport and start server
 const transport = new StdioServerTransport();

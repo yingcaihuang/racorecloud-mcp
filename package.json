@@ -7,10 +7,13 @@
   },
   "scripts": {
     "start": "node index.mjs",
+    "start:http": "node http-server.mjs",
     "test": "vitest --run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
     "zod": "^3.25.30"
   },
   "devDependencies": {

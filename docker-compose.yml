@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  mcp:
+    image: ghcr.io/yingcaihuang/racorecloud-mcp:latest
+    expose:
+      - "3000"              # 仅内部网络暴露，不映射到宿主机
+    restart: unless-stopped
+    networks:
+      - internal
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/cert:/etc/cert:ro          # 自管证书，只读挂载
+    depends_on:
+      - mcp
+    restart: unless-stopped
+    networks:
+      - internal
+
+networks:
+  internal:

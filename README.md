@@ -168,6 +168,49 @@ node --check index.mjs && echo "✅ 安装成功"
 
 如果返回域名信息，说明配置成功。
 
+## 远程 MCP Server（HTTP 模式）
+
+除了上面的本地 stdio 方式，本项目还支持部署为**远程 HTTP MCP Server**，供支持 Remote MCP 的客户端（如 Amazon Quick、Cursor 等）通过 URL 连接。两种模式并存，互不影响。
+
+### 启动 HTTP Server
+
+```bash
+npm run start:http
+```
+
+默认监听 `3000` 端口（可通过环境变量 `PORT` 修改）。端点：
+
+```
+POST  http(s)://<主机>/racorecdn/mcp     # MCP 协议入口
+GET   http(s)://<主机>/racorecdn/health  # 健康检查
+```
+
+> 💡 HTTP 模式采用**多租户**设计：凭证由客户端在请求 header 中携带，服务端不存储任何密钥。每个租户用自己的 Access/Secret Key，互相隔离。
+
+### 客户端配置（Remote MCP）
+
+在支持 Remote MCP 的客户端里，粘贴以下 JSON 配置（把 URL 和密钥换成你自己的）：
+
+```json
+{
+  "url": "https://你的域名/racorecdn/mcp",
+  "headers": {
+    "X-Racore-Access-Key": "你的 Access Key",
+    "X-Racore-Secret-Key": "你的 Secret Key"
+  }
+}
+```
+
+本地测试时 URL 用 `http://127.0.0.1:3000/racorecdn/mcp`。
+
+> ⚠️ **注意**：
+> - 凭证通过 `X-Racore-Access-Key` / `X-Racore-Secret-Key` 两个 header 传递，不是 `Authorization`。
+> - 生产环境务必使用 **HTTPS**（凭证走 header 明文传输），建议前置 Nginx/反向代理做 TLS 终止。
+
+### 部署
+
+项目内置 `Dockerfile`、`docker-compose.yml`（含 Nginx 反向代理）和 GitHub Actions 工作流（`.github/workflows/deploy.yml`），支持构建镜像推送到 GHCR 并自动部署。证书目录默认挂载自宿主机 `/etc/cert/`。
+
 ## 获取 API 密钥
 
 1. 登录 [Racore Cloud 控制台](https://portal.racorecloud.com)
