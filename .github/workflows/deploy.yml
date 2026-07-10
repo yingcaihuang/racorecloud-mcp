@@ -43,7 +43,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            export GIT_TERMINAL_PROMPT=0
             cd /opt/racorecloud-mcp
-            git pull
+            git pull --ff-only
             docker compose pull
             docker compose up -d
