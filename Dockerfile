@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 # 先拷贝依赖清单，利用 Docker 层缓存
