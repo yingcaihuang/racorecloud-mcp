@@ -46,4 +46,5 @@ jobs:
             export GIT_TERMINAL_PROMPT=0
             cd /opt/racorecloud-mcp
             git pull --ff-only
+            docker network create shared-mcp 2>/dev/null || true
             docker compose pull && docker compose up -d
